@@ -372,17 +372,55 @@ async function callAIWithRetry(provider, apiKey, sp, uc) {
   throw lastErr || new Error('All retries exhausted');
 }
 
+// // ============================================================
+// // SSE TRANSFORMER
+// // ============================================================
+// function sseTransform(provider) {
+//   return new TransformStream({
+//     transform(chunk, controller) {
+//       const text = new TextDecoder().decode(chunk);
+//       for (const line of text.split('\n')) {
+//         if (!line.startsWith('data: ')) continue;
+//         const d = line.slice(6).trim();
+//         if (d === '[DONE]') { controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n')); continue; }
+//         try {
+//           const j = JSON.parse(d);
+//           const content = provider === 'claude'
+//             ? (j.type === 'content_block_delta' ? j.delta?.text : undefined)
+//             : j.choices?.[0]?.delta?.content;
+//           if (content) controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`));
+//         } catch {}
+//       }
+//     },
+//   });
+// }
+
+
+
+
 // ============================================================
 // SSE TRANSFORMER
 // ============================================================
 function sseTransform(provider) {
+  let buffer = '';
+  const decoder = new TextDecoder();
+  
   return new TransformStream({
     transform(chunk, controller) {
-      const text = new TextDecoder().decode(chunk);
-      for (const line of text.split('\n')) {
+      // 1. 将新到的数据拼接到残余缓冲区中
+      buffer += decoder.decode(chunk, { stream: true });
+      const lines = buffer.split('\n');
+      
+      // 2. 弹出最后一行可能不完整的文本，留到下一个 chunk 再拼
+      buffer = lines.pop(); 
+      
+      for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         const d = line.slice(6).trim();
-        if (d === '[DONE]') { controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n')); continue; }
+        if (d === '[DONE]') { 
+          controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n')); 
+          continue; 
+        }
         try {
           const j = JSON.parse(d);
           const content = provider === 'claude'
@@ -392,9 +430,23 @@ function sseTransform(provider) {
         } catch {}
       }
     },
+    flush(controller) {
+      // 3. 传输彻底结束时，如果缓冲区还有最后一丝残留数据，做最后一次解析
+      if (buffer && buffer.startsWith('data: ')) {
+        const d = buffer.slice(6).trim();
+        try {
+          const j = JSON.parse(d);
+          const content = provider === 'claude'
+            ? (j.type === 'content_block_delta' ? j.delta?.text : undefined)
+            : j.choices?.[0]?.delta?.content;
+          if (content) controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`));
+        } catch {}
+      }
+    }
   });
 }
 
+ 
 // ============================================================
 // HANDLERS
 // ============================================================
