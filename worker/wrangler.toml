@@ -1,0 +1,23 @@
+name = "ppt-evolution-worker"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Non-sensitive config
+[vars]
+MODEL_PROVIDER = "deepseek"
+ALLOWED_ORIGIN = "*"
+
+# KV Namespace (create with: wrangler kv:namespace create "KV")
+# [[kv_namespaces]]
+# binding = "KV"
+# id = "YOUR_KV_NAMESPACE_ID"
+
+# R2 Bucket (create with: wrangler r2 bucket create PAGES)
+# [[r2_buckets]]
+# binding = "R2"
+# bucket_name = "PAGES"
+
+# Secrets (set via: wrangler secret put <KEY_NAME>)
+# DEEPSEEK_API_KEY
+# CLAUDE_API_KEY

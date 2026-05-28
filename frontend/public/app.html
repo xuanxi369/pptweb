@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>执行演化 — PPT InteractiveWebPage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+            display: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'SF Mono', 'Fira Code', 'monospace'],
+          },
+          colors: {
+            surface: { 50: '#FAFBFE', 100: '#F4F6FB', 200: '#E8ECF4', 300: '#D1D5DB' },
+            ink: { 900: '#0F1219', 700: '#374151', 500: '#6B7280', 400: '#9CA3AF', 300: '#D1D5DB' },
+            accent: { blue: '#6366F1', pink: '#F43F5E', green: '#10B981', amber: '#F59E0B' },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --ease-expo:cubic-bezier(0.16,1,0.3,1);
+      --ease-spring:cubic-bezier(0.34,1.56,0.64,1);
+      --ease-quart:cubic-bezier(0.25,1,0.5,1);
+    }
+
+    /* ===== FLUID TYPE ===== */
+    .page-title{font-size:clamp(1.5rem,3vw,2rem);letter-spacing:-0.03em;line-height:1.1}
+
+    /* ===== PAGE LOAD STAGGER ===== */
+    .app-load .stagger-item{opacity:0;transform:translateY(18px);animation:fadeUp .55s var(--ease-expo) forwards}
+    .app-load .stagger-item:nth-child(1){animation-delay:.05s}
+    .app-load .stagger-item:nth-child(2){animation-delay:.1s}
+    .app-load .stagger-item:nth-child(3){animation-delay:.15s}
+    .app-load .stagger-item:nth-child(4){animation-delay:.2s}
+    .app-load .stagger-item:nth-child(5){animation-delay:.25s}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+    /* ===== DROP ZONE ===== */
+    .drop-zone{
+      position:relative;overflow:hidden;
+      transition:all .35s var(--ease-expo);
+      cursor:pointer;
+      border:2px dashed #D1D5DB;
+      border-radius:20px;
+    }
+    .drop-zone::before{
+      content:'';position:absolute;inset:-2px;
+      border-radius:22px;padding:2px;
+      background:conic-gradient(from 0deg,#6366F1,#F43F5E,#10B981,#6366F1);
+      -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+      -webkit-mask-composite:xor;mask-composite:exclude;
+      opacity:0;transition:opacity .4s var(--ease-expo);
+      pointer-events:none;z-index:1;
+    }
+    .drop-zone:hover{border-color:#6366F1;background:rgba(99,102,241,.015)}
+    .drop-zone.drag-over{
+      border-color:transparent;
+      background:rgba(99,102,241,.025);
+      transform:scale(1.008);
+      box-shadow:0 8px 40px rgba(99,102,241,.08);
+    }
+    .drop-zone.drag-over::before{opacity:1}
+
+    /* ===== FILE CARDS ===== */
+    .file-card{
+      animation:cardIn .4s var(--ease-spring) forwards;
+      opacity:0;transform:translateY(10px) scale(.95);
+    }
+    @keyframes cardIn{to{opacity:1;transform:translateY(0) scale(1)}}
+    .file-card:hover .file-remove{opacity:1}
+    .file-remove{
+      opacity:0;transition:opacity .2s;
+      cursor:pointer;
+    }
+    .file-thumb{
+      width:48px;height:48px;border-radius:10px;
+      object-fit:cover;border:1px solid #E8ECF4;
+      flex-shrink:0;
+    }
+    .file-icon-placeholder{
+      width:48px;height:48px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;
+    }
+
+    /* ===== CONFIG PANEL ===== */
+    .config-panel{
+      max-height:0;overflow:hidden;opacity:0;
+      transition:max-height .45s var(--ease-expo),opacity .35s,margin .35s;
+      margin-top:0;
+    }
+    .config-panel.open{max-height:320px;opacity:1;margin-top:0}
+
+    /* ===== PROVIDER BUTTONS ===== */
+    .prov-btn{
+      transition:all .25s var(--ease-expo);
+      border:2px solid #E8ECF4;
+      border-radius:14px;
+      cursor:pointer;
+    }
+    .prov-btn.active{border-color:#6366F1;background:rgba(99,102,241,.04)}
+    .prov-btn:hover:not(.active){border-color:#D1D5DB}
+
+    /* ===== EVOLVE BUTTON ===== */
+    .evolve-btn{
+      position:relative;overflow:hidden;
+      transition:all .35s var(--ease-expo);
+    }
+    .evolve-btn::before{
+      content:'';position:absolute;inset:0;
+      background:linear-gradient(135deg,rgba(255,255,255,.1) 0%,transparent 50%);
+      opacity:0;transition:opacity .3s;
+    }
+    .evolve-btn:not(:disabled):hover{
+      transform:translateY(-2px);
+      box-shadow:0 14px 44px rgba(99,102,241,.22);
+    }
+    .evolve-btn:not(:disabled):hover::before{opacity:1}
+    .evolve-btn:not(:disabled):active{
+      transform:translateY(0) scale(.98);
+      transition-duration:.12s;
+    }
+    .evolve-btn:disabled{opacity:.35;cursor:not-allowed}
+
+    /* ===== PROGRESS BAR ===== */
+    .progress-track{height:3px;background:#F4F6FB;border-radius:4px;overflow:hidden}
+    .progress-fill{
+      height:100%;border-radius:4px;
+      background:linear-gradient(90deg,#6366F1,#F43F5E,#10B981);
+      transition:width .8s var(--ease-expo);
+      width:0%;
+    }
+    /* Phase labels */
+    .phase-label{
+      font-size:11px;font-weight:500;letter-spacing:.02em;
+      padding:3px 10px;border-radius:6px;
+      transition:all .3s var(--ease-expo);
+    }
+    .phase-active{background:rgba(99,102,241,.1);color:#6366F1}
+    .phase-done{background:rgba(16,185,129,.1);color:#10B981}
+    .phase-pending{background:#F4F6FB;color:#9CA3AF}
+
+    /* ===== CONSOLE LOG ===== */
+    .console-wrap{
+      font-family:'JetBrains Mono',monospace;
+      font-size:12px;line-height:1.7;
+      max-height:200px;overflow-y:auto;
+      scrollbar-width:thin;scrollbar-color:#E8ECF4 transparent;
+    }
+    .console-wrap::-webkit-scrollbar{width:4px}
+    .console-wrap::-webkit-scrollbar-thumb{background:#E8ECF4;border-radius:4px}
+    .log-line{
+      opacity:0;transform:translateX(-6px);
+      animation:logIn .3s var(--ease-expo) forwards;
+    }
+    @keyframes logIn{to{opacity:1;transform:translateX(0)}}
+
+    /* ===== TYPEWRITER ===== */
+    .typewriter{overflow:hidden;white-space:nowrap;border-right:2px solid #6366F1;animation:blink .8s step-end infinite}
+    @keyframes blink{50%{border-color:transparent}}
+
+    /* ===== RESULT AREA ===== */
+    .result-area{
+      opacity:0;transform:translateY(12px);
+      animation:fadeUp .5s var(--ease-expo) .1s forwards;
+    }
+    .result-link-box{
+      transition:all .25s var(--ease-expo);
+      cursor:pointer;
+    }
+    .result-link-box:hover{
+      background:rgba(99,102,241,.03);
+      box-shadow:0 0 0 1px rgba(99,102,241,.15);
+    }
+
+    /* ===== TOAST ===== */
+    .toast-wrap{position:fixed;bottom:24px;right:24px;z-index:9999}
+    .toast{
+      animation:toastIn .4s var(--ease-spring) forwards;
+      backdrop-filter:blur(12px);
+    }
+    .toast.out{animation:toastOut .3s ease-in forwards}
+    @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes toastOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(14px) scale(.92)}}
+
+    /* ===== SPINNER ===== */
+    .spinner{
+      width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
+      border-top-color:#fff;border-radius:50%;
+      animation:spin .6s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ===== KEYBOARD HINT BADGE ===== */
+    kbd{
+      font-family:'Space Grotesk',monospace;font-size:11px;
+      padding:2px 6px;border-radius:4px;
+      background:#F4F6FB;border:1px solid #E8ECF4;color:#6B7280;
+      line-height:1.4;
+    }
+
+    /* ===== NOISE ===== */
+    .noise{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.012;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media(max-width:640px){
+      .evolve-btn{padding:14px 20px}
+      .console-wrap{max-height:140px;font-size:11px}
+      .phase-bar{flex-wrap:wrap;gap:4px}
+    }
+  </style>
+</head>
+<body class="bg-surface-50 text-ink-900 font-sans antialiased min-h-screen">
+<div class="noise"></div>
+
+<!-- ===== HEADER ===== -->
+<header class="sticky top-0 z-50 bg-surface-50/80 backdrop-blur-xl border-b border-surface-200/60">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <a href="index.html" class="flex items-center gap-1.5 text-ink-400 hover:text-ink-900 transition-colors duration-200 group">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="transition-transform group-hover:-translate-x-0.5">
+          <path d="M10 3L5 8L10 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="text-sm font-medium hidden sm:inline">首页</span>
+      </a>
+      <div class="w-px h-4 bg-surface-300"></div>
+      <span class="text-sm font-semibold tracking-tight">执行演化</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-shortcuts" class="hidden sm:flex items-center gap-1.5 text-xs text-ink-400 hover:text-ink-700 px-2 py-1 rounded-lg hover:bg-surface-100 transition-all" title="快捷键">
+        <kbd>⌘K</kbd>
+      </button>
+      <button id="btn-config" class="flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-900 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-surface-100">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M7 1V3M7 11V13M1 7H3M11 7H13M2.8 2.8L4.2 4.2M9.8 9.8L11.2 11.2M11.2 2.8L9.8 4.2M4.2 9.8L2.8 11.2" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+        <span class="hidden sm:inline">API</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main class="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 app-load">
+
+  <!-- CONFIG PANEL -->
+  <div id="config-panel" class="config-panel mb-6">
+    <div class="bg-white rounded-2xl border border-surface-200 p-5 sm:p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-sm text-ink-700">API 引擎配置</h3>
+        <button id="btn-config-close" class="p-1 rounded-md hover:bg-surface-100 transition-colors">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3L11 11M11 3L3 11" stroke="#9CA3AF" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="flex gap-3 mb-4">
+        <button class="prov-btn active flex-1 px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2" data-provider="deepseek">
+          <span class="w-2 h-2 rounded-full bg-accent-blue"></span>DeepSeek
+        </button>
+        <button class="prov-btn flex-1 px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 text-ink-500" data-provider="claude">
+          <span class="w-2 h-2 rounded-full bg-accent-amber"></span>Claude
+        </button>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-ink-500 mb-1.5">API Key <span class="text-ink-300">(可选)</span></label>
+        <input id="api-key" type="password" placeholder="sk-..."
+          class="w-full px-4 py-2.5 rounded-xl border border-surface-200 bg-surface-50 text-sm font-mono text-ink-700 placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all">
+      </div>
+      <p class="text-xs text-ink-400 mt-3 leading-relaxed">API Key 仅本次会话使用，不存储。也可在 Worker 后端 <code class="bg-surface-100 px-1.5 py-0.5 rounded text-ink-500">wrangler secret put</code> 配置。</p>
+    </div>
+  </div>
+
+  <!-- UPLOAD ZONE -->
+  <div id="drop-zone" class="drop-zone stagger-item p-6 sm:p-10 text-center mb-5">
+    <input id="file-input" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.tiff,.tif,.pdf" class="hidden">
+
+    <!-- Placeholder (shown when no files) -->
+    <div id="upload-empty">
+      <div class="w-14 h-14 rounded-2xl bg-surface-100 flex items-center justify-center mx-auto mb-4 transition-transform duration-300 group-hover:scale-110">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M12 16V4M12 4L8 8M12 4L16 8" stroke="#6366F1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 14V18C4 19.1046 4.89543 20 6 20H18C19.1046 20 20 19.1046 20 18V14" stroke="#9CA3AF" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <p class="text-sm font-medium text-ink-700 mb-1">拖拽文件到此处，或点击选择</p>
+      <p class="text-xs text-ink-400">JPG · PNG · WebP · TIFF · PDF — 单文件最大 20MB</p>
+      <p class="text-xs text-ink-300 mt-2">快捷键 <kbd>⌘U</kbd> 快速上传</p>
+    </div>
+
+    <!-- File list (shown when files added) -->
+    <div id="upload-files" class="hidden text-left">
+      <div id="file-cards" class="space-y-2 mb-3"></div>
+      <button id="btn-add-more" class="text-xs text-accent-blue hover:text-accent-blue/80 font-medium transition-colors">
+        + 添加更多文件
+      </button>
+    </div>
+  </div>
+
+  <!-- EVOLVE BUTTON -->
+  <button id="btn-evolve" class="evolve-btn stagger-item w-full bg-ink-900 text-white py-3.5 sm:py-4 rounded-full text-base font-semibold tracking-wide flex items-center justify-center gap-2.5 mb-4" disabled>
+    <svg id="evolve-icon" width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <path d="M9 2L11 7H16L12 10L13.5 15.5L9 12L4.5 15.5L6 10L2 7H7L9 2Z" stroke="currentColor" stroke-width="1.3" fill="none"/>
+    </svg>
+    <span id="evolve-text">执行演化</span>
+    <div id="evolve-spinner" class="spinner hidden"></div>
+  </button>
+
+  <!-- EXECUTION CONSOLE -->
+  <div id="console" class="hidden stagger-item">
+    <div class="bg-white rounded-2xl border border-surface-200 overflow-hidden">
+
+      <!-- Progress -->
+      <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+
+      <!-- Phase indicators -->
+      <div class="px-5 sm:px-6 pt-4 pb-3 border-b border-surface-200/60">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span id="status-dot" class="w-2 h-2 rounded-full bg-accent-amber animate-pulse"></span>
+            <span id="status-text" class="text-sm font-medium text-ink-700 typewriter">初始化...</span>
+          </div>
+          <span id="elapsed" class="text-xs text-ink-400 font-mono tabular-nums">00:00</span>
+        </div>
+        <!-- Phase bar -->
+        <div id="phase-bar" class="phase-bar flex gap-1.5">
+          <span class="phase-label phase-pending" data-phase="parse">解析</span>
+          <span class="phase-label phase-pending" data-phase="build">构建</span>
+          <span class="phase-label phase-pending" data-phase="ai">AI 生成</span>
+          <span class="phase-label phase-pending" data-phase="pack">打包</span>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div class="px-5 sm:px-6 py-4">
+        <div id="log" class="console-wrap"></div>
+      </div>
+
+      <!-- Result (hidden until done) -->
+      <div id="result" class="hidden border-t border-surface-200/60 px-5 sm:px-6 py-5 bg-surface-50/50">
+        <div class="result-area">
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-6 h-6 rounded-full bg-accent-green/10 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 7L6 9L10 5" stroke="#10B981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="text-sm font-semibold text-ink-900">演化完成</span>
+            <span id="result-stats" class="text-xs text-ink-400 ml-auto"></span>
+          </div>
+
+          <!-- Online link -->
+          <div id="result-link-wrap" class="hidden mb-3">
+            <label class="text-xs text-ink-400 mb-1.5 block">在线链接</label>
+            <div class="result-link-box flex items-center gap-2 rounded-xl border border-surface-200 bg-white px-4 py-2.5">
+              <a id="result-link" href="#" target="_blank" class="flex-1 text-sm text-accent-blue font-mono truncate block hover:underline"></a>
+              <button id="btn-copy" class="p-1.5 rounded-lg hover:bg-surface-100 transition-colors text-ink-400 hover:text-ink-700" title="复制链接">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M10 4V2.5C10 2.22 9.78 2 9.5 2H2.5C2.22 2 2 2.22 2 2.5V9.5C2 9.78 2.22 10 2.5 10H4" stroke="currentColor" stroke-width="1.2"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Download buttons -->
+          <div class="flex gap-2.5">
+            <button id="btn-dl-html" class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-ink-900 text-white text-sm font-medium hover:bg-ink-700 transition-colors">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2V9M7 9L4 6M7 9L10 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 10V11.5C2 12.05 2.45 12.5 3 12.5H11C11.55 12.5 12 12.05 12 11.5V10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              下载 HTML
+            </button>
+            <button id="btn-dl-standalone" class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-surface-200 bg-white text-sm font-medium text-ink-700 hover:bg-surface-100 transition-colors">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M5 5H9M5 7H9M5 9H7" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+              自包含文件
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- TOAST -->
+<div id="toast-wrap" class="toast-wrap"></div>
+
+<!-- SHORTCUT MODAL -->
+<div id="shortcut-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-ink-900/30 backdrop-blur-sm" style="display:none">
+  <div class="bg-white rounded-2xl border border-surface-200 shadow-xl p-6 w-[320px] max-w-[90vw]">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-sm">键盘快捷键</h3>
+      <button id="close-shortcuts" class="p-1 rounded-md hover:bg-surface-100"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3L11 11M11 3L3 11" stroke="#9CA3AF" stroke-width="1.2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="space-y-2.5 text-sm">
+      <div class="flex items-center justify-between"><span class="text-ink-500">上传文件</span><span><kbd>⌘</kbd> <kbd>U</kbd></span></div>
+      <div class="flex items-center justify-between"><span class="text-ink-500">执行演化</span><span><kbd>⌘</kbd> <kbd>↵</kbd></span></div>
+      <div class="flex items-center justify-between"><span class="text-ink-500">快速开始</span><span><kbd>⌘</kbd> <kbd>K</kbd></span></div>
+      <div class="flex items-center justify-between"><span class="text-ink-500">关闭面板</span><span><kbd>Esc</kbd></span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const WORKER_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:8787'
+  : 'https://ppt-evolution-worker.YOUR_SUBDOMAIN.workers.dev';
+
+const ACCEPT = {
+  'image/jpeg': { ext: '.jpg', icon: 'image', color: '#6366F1' },
+  'image/png':  { ext: '.png', icon: 'image', color: '#6366F1' },
+  'image/webp': { ext: '.webp', icon: 'image', color: '#6366F1' },
+  'image/tiff': { ext: '.tiff', icon: 'image', color: '#6366F1' },
+  'application/pdf': { ext: '.pdf', icon: 'pdf', color: '#F43F5E' },
+};
+const MAX_SIZE = 20 * 1024 * 1024;
+
+// ============================================================
+// STATE
+// ============================================================
+let files = [];
+let provider = 'deepseek';
+let processing = false;
+let html = null;
+let timer = null, elapsed = 0;
+
+// ============================================================
+// DOM
+// ============================================================
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+const el = {
+  drop: $('#drop-zone'),
+  input: $('#file-input'),
+  empty: $('#upload-empty'),
+  fileList: $('#upload-files'),
+  cards: $('#file-cards'),
+  addMore: $('#btn-add-more'),
+  evolve: $('#btn-evolve'),
+  eText: $('#evolve-text'),
+  eIcon: $('#evolve-icon'),
+  eSpin: $('#evolve-spinner'),
+  config: $('#config-panel'),
+  btnCfg: $('#btn-config'),
+  btnCfgClose: $('#btn-config-close'),
+  apiKey: $('#api-key'),
+  console: $('#console'),
+  progress: $('#progress-fill'),
+  dot: $('#status-dot'),
+  statusText: $('#status-text'),
+  elapsed: $('#elapsed'),
+  phaseBar: $('#phase-bar'),
+  log: $('#log'),
+  result: $('#result'),
+  rLink: $('#result-link'),
+  rLinkWrap: $('#result-link-wrap'),
+  rStats: $('#result-stats'),
+  btnCopy: $('#btn-copy'),
+  btnDlHtml: $('#btn-dl-html'),
+  btnDlStandalone: $('#btn-dl-standalone'),
+  toastWrap: $('#toast-wrap'),
+  shortcutModal: $('#shortcut-modal'),
+};
+
+// ============================================================
+// PDF.js
+// ============================================================
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function toast(msg, type = 'info') {
+  const bg = { info: 'bg-ink-900/90', success: 'bg-accent-green/90', error: 'bg-accent-pink/90', warn: 'bg-accent-amber/90' };
+  const ic = {
+    info: '<circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M8 5v1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M8 8v3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+    success: '<circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>',
+    error: '<circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+    warn: '<path d="M8 2l6.5 11H1.5L8 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 7v3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="11.5" r=".5" fill="currentColor"/>',
+  };
+  const d = document.createElement('div');
+  d.className = `toast ${bg[type]} text-white px-4 py-3 rounded-xl flex items-center gap-2.5 shadow-lg mb-2 text-sm font-medium`;
+  d.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">${ic[type]}</svg><span>${esc(msg)}</span>`;
+  el.toastWrap.appendChild(d);
+  setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 300); }, 3500);
+}
+
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+
+async function hashStr(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ============================================================
+// CONFIG PANEL
+// ============================================================
+el.btnCfg.addEventListener('click', () => el.config.classList.toggle('open'));
+el.btnCfgClose.addEventListener('click', () => el.config.classList.remove('open'));
+
+$$('.prov-btn').forEach(b => b.addEventListener('click', () => {
+  $$('.prov-btn').forEach(x => { x.classList.remove('active'); x.classList.add('text-ink-500'); });
+  b.classList.add('active'); b.classList.remove('text-ink-500');
+  provider = b.dataset.provider;
+}));
+
+// ============================================================
+// FILE UPLOAD — DRAG & DROP + THUMBNAILS
+// ============================================================
+function validate(f) {
+  if (!ACCEPT[f.type]) { toast(`不支持: ${f.name}`, 'error'); return false; }
+  if (f.size > MAX_SIZE) { toast(`过大: ${f.name}`, 'error'); return false; }
+  if (files.some(x => x.name === f.name && x.size === f.size)) { toast(`已添加: ${f.name}`, 'warn'); return false; }
+  return true;
+}
+
+function addFiles(list) {
+  for (const f of list) if (validate(f)) files.push(f);
+  renderFiles();
+}
+
+function removeFile(i) { files.splice(i, 1); renderFiles(); }
+window.removeFile = removeFile; // expose to onclick
+
+function renderFiles() {
+  if (!files.length) {
+    el.empty.classList.remove('hidden');
+    el.fileList.classList.add('hidden');
+    el.evolve.disabled = true;
+    return;
+  }
+  el.empty.classList.add('hidden');
+  el.fileList.classList.remove('hidden');
+  el.evolve.disabled = false;
+
+  el.cards.innerHTML = files.map((f, i) => {
+    const size = f.size < 1048576 ? (f.size/1024).toFixed(0)+' KB' : (f.size/1048576).toFixed(1)+' MB';
+    const info = ACCEPT[f.type] || { icon: 'image', color: '#9CA3AF' };
+    const isPdf = f.type === 'application/pdf';
+
+    // Thumbnail: for images we generate a preview, for PDFs we show an icon
+    let thumb;
+    if (!isPdf && f.type.startsWith('image/')) {
+      // We'll set the src via FileReader below
+      thumb = `<img class="file-thumb" id="thumb-${i}" alt="">`;
+      // Generate preview async
+      const reader = new FileReader();
+      reader.onload = () => { const img = document.getElementById('thumb-'+i); if(img) img.src = reader.result; };
+      reader.readAsDataURL(f);
+    } else {
+      thumb = `<div class="file-icon-placeholder" style="background:${info.color}10">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="4" y="2" width="14" height="18" rx="2" stroke="${info.color}" stroke-width="1.3"/>
+          <path d="M8 8h6M8 11h6M8 14h3" stroke="${info.color}" stroke-width="1" stroke-linecap="round" opacity=".5"/>
+        </svg>
+      </div>`;
+    }
+
+    return `
+      <div class="file-card flex items-center gap-3 bg-surface-50 rounded-xl px-3 py-2.5 border border-surface-200/60" style="animation-delay:${i*60}ms">
+        ${thumb}
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-ink-700 truncate">${esc(f.name)}</p>
+          <p class="text-xs text-ink-400">${isPdf?'PDF 文档':f.type.split('/')[1].toUpperCase()} · ${size}</p>
+        </div>
+        <button onclick="removeFile(${i})" class="file-remove p-1.5 rounded-lg hover:bg-surface-200/60 text-ink-400 hover:text-accent-pink transition-all">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 4l6 6M10 4l-6 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>`;
+  }).join('');
+}
+
+// Drag events
+el.drop.addEventListener('dragover', e => { e.preventDefault(); el.drop.classList.add('drag-over'); });
+el.drop.addEventListener('dragleave', e => { if (!el.drop.contains(e.relatedTarget)) el.drop.classList.remove('drag-over'); });
+el.drop.addEventListener('drop', e => { e.preventDefault(); el.drop.classList.remove('drag-over'); addFiles(e.dataTransfer.files); });
+el.drop.addEventListener('click', e => {
+  if (e.target.closest('#btn-add-more') || e.target.closest('.file-remove')) return;
+  el.input.click();
+});
+el.input.addEventListener('change', e => { addFiles(e.target.files); el.input.value = ''; });
+el.addMore.addEventListener('click', e => { e.stopPropagation(); el.input.click(); });
+
+// ============================================================
+// PDF EXTRACTION (client-side)
+// ============================================================
+async function extractPDF(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({ scale: 2.0 });
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    const tc = await page.getTextContent();
+    pages.push({
+      num: i, w: vp.width, h: vp.height,
+      img: c.toDataURL('image/jpeg', 0.85),
+      text: tc.items.map(t => t.str).join(' ').trim(),
+      items: tc.items.map(t => ({ text: t.str, size: Math.abs(t.transform[0]) })),
+    });
+  }
+  return { type: 'pdf', name: file.name, total: pdf.numPages, pages };
+}
+
+async function extractImage(file) {
+  return new Promise(r => {
+    const rd = new FileReader();
+    rd.onload = () => r({ type: 'image', name: file.name, mime: file.type, img: rd.result, size: file.size });
+    rd.readAsDataURL(file);
+  });
+}
+
+function buildDocData(extracted) {
+  const parts = [];
+  for (const f of extracted) {
+    if (f.type === 'pdf') {
+      parts.push(`### PDF: ${f.name}\nPages: ${f.total}`);
+      for (const p of f.pages) {
+        parts.push(`\n--- Page ${p.num} (${p.w}x${p.h}px) ---`);
+        if (p.text) parts.push(`Text:\n${p.text}`);
+        const hd = p.items.filter(t => t.size > 16);
+        const bd = p.items.filter(t => t.size <= 16);
+        if (hd.length) parts.push(`Headings: ${hd.map(h => `"${h.text}" (${h.size.toFixed(1)}px)`).join(', ')}`);
+        parts.push(`[Page Image Base64]:\n${p.img}`);
+      }
+    } else {
+      parts.push(`### Image: ${f.name}\nFormat: ${f.mime}\n[Image Base64]:\n${f.img}`);
+    }
+  }
+  return parts.join('\n');
+}
+
+// ============================================================
+// CONSOLE HELPERS
+// ============================================================
+function setPhase(phase) {
+  $$('.phase-label').forEach(l => {
+    const p = l.dataset.phase;
+    const phases = ['parse','build','ai','pack'];
+    const ci = phases.indexOf(phase), li = phases.indexOf(p);
+    l.classList.remove('phase-active','phase-done','phase-pending');
+    if (li < ci) l.classList.add('phase-done');
+    else if (li === ci) l.classList.add('phase-active');
+    else l.classList.add('phase-pending');
+  });
+}
+
+function log(msg, type = 'info') {
+  const colors = { info: 'text-ink-500', success: 'text-accent-green', error: 'text-accent-pink' };
+  const d = document.createElement('div');
+  d.className = `log-line ${colors[type]||colors.info}`;
+  d.textContent = msg;
+  el.log.appendChild(d);
+  el.log.scrollTop = el.log.scrollHeight;
+}
+
+function setStatus(text) {
+  el.statusText.textContent = '';
+  el.statusText.classList.add('typewriter');
+  let i = 0;
+  const iv = setInterval(() => {
+    if (i < text.length) { el.statusText.textContent += text[i]; i++; }
+    else { clearInterval(iv); el.statusText.classList.remove('typewriter'); }
+  }, 25);
+}
+
+function startTimer() {
+  elapsed = 0;
+  timer = setInterval(() => {
+    elapsed++;
+    const m = String(Math.floor(elapsed/60)).padStart(2,'0');
+    const s = String(elapsed%60).padStart(2,'0');
+    el.elapsed.textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+// ============================================================
+// EVOLUTION ENGINE
+// ============================================================
+async function evolve() {
+  if (!files.length || processing) return;
+  processing = true;
+  html = null;
+
+  // UI: disable
+  el.evolve.disabled = true;
+  el.eText.textContent = '演化中...';
+  el.eIcon.classList.add('hidden');
+  el.eSpin.classList.remove('hidden');
+  el.console.classList.remove('hidden');
+  el.result.classList.add('hidden');
+  el.log.innerHTML = '';
+  el.progress.style.width = '0%';
+  el.dot.className = 'w-2 h-2 rounded-full bg-accent-amber animate-pulse';
+  setPhase('parse');
+  setStatus('初始化');
+  startTimer();
+
+  try {
+    // Phase 1: Parse
+    log('📂 解析上传文件...', 'info');
+    setStatus('正在解析文件');
+    el.progress.style.width = '5%';
+
+    const extracted = [];
+    for (const f of files) {
+      if (f.type === 'application/pdf') {
+        log(`  → PDF: ${f.name}`, 'info');
+        extracted.push(await extractPDF(f));
+        log(`  ✓ ${f.name} 解析完成`, 'success');
+      } else {
+        log(`  → 图片: ${f.name}`, 'info');
+        extracted.push(await extractImage(f));
+        log(`  ✓ ${f.name} 已加载`, 'success');
+      }
+    }
+    el.progress.style.width = '15%';
+
+    // Phase 2: Build
+    setPhase('build');
+    setStatus('构建数据包');
+    log('🔨 构建文档数据包...', 'info');
+    const docData = buildDocData(extracted);
+    log(`  ✓ 数据包 ${(docData.length/1024).toFixed(1)} KB`, 'success');
+    el.progress.style.width = '25%';
+
+    // Phase 3: AI
+    setPhase('ai');
+    const provName = provider === 'claude' ? 'Claude' : 'DeepSeek';
+    setStatus(`调用 ${provName}`);
+    log(`🤖 调用 ${provName} API...`, 'info');
+    el.progress.style.width = '30%';
+
+    const key = el.apiKey.value.trim();
+    const res = await fetch(`${WORKER_URL}/api/evolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, api_key: key || undefined, document_data: docData, file_name: files.map(f=>f.name).join(', ') }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `API ${res.status}`);
+    }
+
+    log('  → AI 正在生成...', 'info');
+    el.progress.style.width = '35%';
+
+    // Read stream
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let full = '', buf = '', chunks = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if (d === '[DONE]') { log('  ✓ 生成完成', 'success'); continue; }
+        try {
+          const j = JSON.parse(d);
+          if (j.content) {
+            full += j.content; chunks++;
+            el.progress.style.width = Math.min(30 + chunks * 0.4, 90) + '%';
+            if (chunks % 80 === 0) log(`  → ${(full.length/1024).toFixed(1)} KB`, 'info');
+          }
+        } catch {}
+      }
+    }
+
+    // Phase 4: Pack
+    setPhase('pack');
+    setStatus('打包结果');
+    log('📦 提取 HTML...', 'info');
+    el.progress.style.width = '92%';
+
+    const m = full.match(/```html\s*\n?([\s\S]*?)```/);
+    html = m ? m[1].trim() : full.trim();
+    if (!html || html.length < 100) throw new Error('生成内容过短，请重试');
+
+    log(`  ✓ HTML ${(html.length/1024).toFixed(1)} KB`, 'success');
+    el.progress.style.width = '95%';
+
+    // Upload to R2 for permanent hosting
+    log('☁️ 上传到云端...', 'info');
+    setStatus('上传到 R2');
+    let permalink = null;
+    try {
+      const storeRes = await fetch(`${WORKER_URL}/api/store`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          html,
+          file_name: files.map(f => f.name).join(', '),
+          provider,
+          file_size: files.reduce((s, f) => s + f.size, 0),
+        }),
+      });
+      if (storeRes.ok) {
+        const storeData = await storeRes.json();
+        permalink = storeData.permalink;
+        log(`  ✓ 永久链接已生成`, 'success');
+      } else {
+        log('  ⚠ R2 上传失败，使用本地预览', 'warn');
+      }
+    } catch {
+      log('  ⚠ R2 不可用，使用本地预览', 'warn');
+    }
+
+    // Fallback: local blob URL
+    const blob = new Blob([html], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+
+    el.progress.style.width = '100%';
+    el.dot.className = 'w-2 h-2 rounded-full bg-accent-green';
+    setStatus('完成');
+    log(`✅ 演化完成 · ${elapsed}s · ${chunks} chunks`, 'success');
+
+    // Show result
+    el.result.classList.remove('hidden');
+    const displayUrl = permalink || blobUrl;
+    el.rLink.href = displayUrl; el.rLink.textContent = displayUrl;
+    el.rLinkWrap.classList.remove('hidden');
+    el.rStats.textContent = `${(html.length/1024).toFixed(0)} KB · ${elapsed}s`;
+
+    el.btnDlHtml.onclick = () => dl(html, 'evolved-page.html', 'text/html');
+    el.btnDlStandalone.onclick = () => dl(html, 'evolved-standalone.html', 'text/html');
+    el.btnCopy.onclick = () => navigator.clipboard.writeText(displayUrl).then(() => toast('已复制', 'success'));
+
+    toast('演化完成', 'success');
+
+  } catch (err) {
+    console.error(err);
+    log(`❌ ${err.message}`, 'error');
+    el.dot.className = 'w-2 h-2 rounded-full bg-accent-pink';
+    setStatus('失败');
+    toast(err.message, 'error');
+  } finally {
+    clearInterval(timer);
+    processing = false;
+    el.evolve.disabled = !files.length;
+    el.eText.textContent = '执行演化';
+    el.eIcon.classList.remove('hidden');
+    el.eSpin.classList.add('hidden');
+  }
+}
+
+function dl(content, name, mime) {
+  const b = new Blob([content], { type: mime });
+  const u = URL.createObjectURL(b);
+  const a = document.createElement('a'); a.href = u; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u);
+  toast(`${name} 下载中`, 'success');
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+el.evolve.addEventListener('click', evolve);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  const mod = e.metaKey || e.ctrlKey;
+
+  // ⌘U → upload
+  if (mod && e.key === 'u') { e.preventDefault(); el.input.click(); }
+  // ⌘Enter → evolve
+  if (mod && e.key === 'Enter') { e.preventDefault(); evolve(); }
+  // ⌘K → go to app (from portal) or show shortcuts
+  if (mod && e.key === 'k') { e.preventDefault(); window.location.href = 'app.html'; }
+  // Escape → close panels
+  if (e.key === 'Escape') {
+    if (!el.shortcutModal.style.display || el.shortcutModal.style.display === 'flex') {
+      el.shortcutModal.style.display = 'none';
+    } else if (el.config.classList.contains('open')) {
+      el.config.classList.remove('open');
+    }
+  }
+});
+
+// Shortcuts modal
+$('#btn-shortcuts')?.addEventListener('click', () => { el.shortcutModal.style.display = 'flex'; el.shortcutModal.classList.add('flex'); });
+$('#close-shortcuts')?.addEventListener('click', () => { el.shortcutModal.style.display = 'none'; });
+el.shortcutModal.addEventListener('click', e => { if (e.target === el.shortcutModal) el.shortcutModal.style.display = 'none'; });
+</script>
+</body>
+</html>

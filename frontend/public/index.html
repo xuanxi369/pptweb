@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PPT InteractiveWebPage — 让文档活起来</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+            display: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            surface: { 50: '#FAFBFE', 100: '#F4F6FB', 200: '#E8ECF4', 300: '#D1D5DB' },
+            ink: { 900: '#0F1219', 700: '#374151', 500: '#6B7280', 400: '#9CA3AF', 300: '#D1D5DB' },
+            accent: { blue: '#6366F1', pink: '#F43F5E', green: '#10B981', amber: '#F59E0B' },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    :root {
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* ========== FLUID TYPOGRAPHY ========== */
+    .hero-title {
+      font-size: clamp(2.8rem, 7vw, 5.5rem);
+      letter-spacing: -0.04em;
+      line-height: 0.92;
+    }
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+    .section-subtitle {
+      font-size: clamp(0.95rem, 1.5vw, 1.15rem);
+      line-height: 1.65;
+    }
+
+    /* ========== PAGE LOAD SEQUENCE ========== */
+    .page-load .hero-title {
+      opacity: 0;
+      transform: translateY(40px) scale(0.97);
+      animation: heroReveal 0.9s var(--ease-out-expo) 0.15s forwards;
+    }
+    .page-load .hero-subtitle {
+      opacity: 0;
+      transform: translateY(24px);
+      animation: fadeUp 0.7s var(--ease-out-expo) 0.35s forwards;
+    }
+    .page-load .hero-cta {
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fadeUp 0.6s var(--ease-out-expo) 0.5s forwards;
+    }
+    .page-load .hero-trust {
+      opacity: 0;
+      animation: fadeIn 0.6s var(--ease-out-expo) 0.7s forwards;
+    }
+    .page-load .hero-badge {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.9);
+      animation: badgeIn 0.5s var(--ease-spring) 0.05s forwards;
+    }
+
+    @keyframes heroReveal {
+      from { opacity: 0; transform: translateY(40px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes badgeIn {
+      from { opacity: 0; transform: translateY(-10px) scale(0.9); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ========== HERO GRADIENT TEXT ========== */
+    .hero-gradient {
+      background: linear-gradient(135deg, #0F1219 0%, #374151 40%, #6366F1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ========== TRICOLOR ACCENT LINE ========== */
+    .accent-line {
+      height: 3px;
+      background: linear-gradient(90deg, #6366F1, #F43F5E, #10B981);
+      border-radius: 2px;
+    }
+
+    /* ========== CTA BUTTON ========== */
+    .cta-btn {
+      transition: all 0.35s var(--ease-out-expo);
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .cta-btn:hover::before { opacity: 1; }
+    .cta-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 44px rgba(99, 102, 241, 0.22);
+    }
+    .cta-btn:active {
+      transform: translateY(0) scale(0.98);
+      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.18);
+      transition-duration: 0.1s;
+    }
+
+    /* Ghost CTA */
+    .cta-ghost {
+      transition: all 0.3s var(--ease-out-expo);
+    }
+    .cta-ghost:hover {
+      color: #0F1219;
+      transform: translateY(1px);
+    }
+
+    /* ========== SCROLL REVEAL ========== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.7s var(--ease-out-expo), transform 0.7s var(--ease-out-expo);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-delay-1 { transition-delay: 0.08s; }
+    .reveal-delay-2 { transition-delay: 0.16s; }
+    .reveal-delay-3 { transition-delay: 0.24s; }
+
+    /* ========== FEATURE CARDS ========== */
+    .feature-card {
+      transition: box-shadow 0.35s var(--ease-out-expo), transform 0.35s var(--ease-out-expo);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.04);
+    }
+    .feature-card:hover {
+      box-shadow: 0 8px 32px rgba(15, 18, 25, 0.06), 0 0 0 1px rgba(0,0,0,0.04);
+      transform: translateY(-4px);
+    }
+
+    /* ========== DOT GRID ========== */
+    .dot-grid {
+      background-image: radial-gradient(circle, #D1D5DB 0.6px, transparent 0.6px);
+      background-size: 28px 28px;
+      opacity: 0.35;
+    }
+
+    /* ========== NOISE TEXTURE ========== */
+    .noise-overlay {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.012;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* ========== STEP CONNECTOR ========== */
+    .step-num {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Space Grotesk', monospace; font-weight: 700; font-size: 14px;
+      flex-shrink: 0;
+      transition: transform 0.3s var(--ease-spring);
+    }
+    .step-num:hover { transform: scale(1.08); }
+
+    /* ========== FLOATING ORB (subtle) ========== */
+    .orb {
+      position: absolute; border-radius: 50%; pointer-events: none;
+      transition: transform 0.8s var(--ease-out-expo);
+    }
+
+    /* ========== FOOTER ========== */
+    .footer-line {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #E8ECF4, transparent);
+    }
+
+    /* ========== KEYBOARD HINT ========== */
+    kbd {
+      font-family: 'Space Grotesk', monospace;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #F4F6FB;
+      border: 1px solid #E8ECF4;
+      color: #6B7280;
+      line-height: 1.4;
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 768px) {
+      .orb { display: none; }
+      .hero-title { letter-spacing: -0.03em; }
+    }
+  </style>
+</head>
+<body class="bg-surface-50 text-ink-900 font-sans antialiased overflow-x-hidden">
+  <div class="noise-overlay"></div>
+
+  <!-- ===== HEADER ===== -->
+  <header class="fixed top-0 left-0 right-0 z-50 bg-surface-50/80 backdrop-blur-xl border-b border-surface-200/60">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-ink-900 flex items-center justify-center">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M3 6L9 2L15 6V12L9 16L3 12V6Z" stroke="#FAFBFE" stroke-width="1.5" fill="none"/>
+            <path d="M9 2V16" stroke="#FAFBFE" stroke-width="1" opacity="0.4"/>
+            <path d="M3 6L15 12" stroke="#6366F1" stroke-width="1" opacity="0.6"/>
+          </svg>
+        </div>
+        <span class="font-display font-bold text-lg tracking-tight">PPT InteractiveWebPage</span>
+      </div>
+      <nav class="hidden sm:flex items-center gap-7">
+        <a href="#features" class="text-sm text-ink-500 hover:text-ink-900 transition-colors duration-200">功能</a>
+        <a href="#process" class="text-sm text-ink-500 hover:text-ink-900 transition-colors duration-200">流程</a>
+        <a href="app.html" class="text-sm font-medium text-white bg-ink-900 px-5 py-2 rounded-full hover:bg-ink-700 transition-all duration-200 hover:shadow-lg hover:shadow-ink-900/10">
+          开始使用 →
+        </a>
+      </nav>
+      <!-- Mobile menu -->
+      <button id="mobile-menu-btn" class="sm:hidden p-2 rounded-lg hover:bg-surface-100 transition-colors">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M3 5H15M3 9H15M3 13H15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <!-- Mobile dropdown -->
+    <div id="mobile-menu" class="hidden sm:hidden border-t border-surface-200 bg-surface-50 px-6 py-4 space-y-3">
+      <a href="#features" class="block text-sm text-ink-500 hover:text-ink-900">功能</a>
+      <a href="#process" class="block text-sm text-ink-500 hover:text-ink-900">流程</a>
+      <a href="app.html" class="block text-sm font-medium text-accent-blue">开始使用 →</a>
+    </div>
+  </header>
+
+  <!-- ===== HERO ===== -->
+  <section class="relative min-h-screen flex items-center justify-center pt-16 page-load">
+    <div class="absolute inset-0 dot-grid pointer-events-none"></div>
+
+    <!-- Floating orbs (subtle) -->
+    <div class="orb top-[15%] right-[12%] w-72 h-72 rounded-full bg-accent-blue/[0.03] blur-[80px]" id="orb1"></div>
+    <div class="orb bottom-[20%] left-[8%] w-56 h-56 rounded-full bg-accent-pink/[0.025] blur-[70px]" id="orb2"></div>
+
+    <div class="relative z-10 max-w-4xl mx-auto px-6 text-center">
+      <!-- Badge -->
+      <div class="hero-badge inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-100 border border-surface-200 mb-8">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse"></span>
+        <span class="text-xs font-medium text-ink-500 tracking-wide uppercase">AI-Powered Document Evolution</span>
+      </div>
+
+      <!-- Title -->
+      <h1 class="hero-title font-display font-900 mb-7">
+        <span class="hero-gradient">让文档</span><br>
+        <span class="hero-gradient">活起来</span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="hero-subtitle text-ink-500 max-w-xl mx-auto mb-10 font-light">
+        上传 PDF 或图片，AI 将其解构并重构为沉浸式 3D 交互网页。<br class="hidden sm:inline">静态文档 → 活生生的数字体验。
+      </p>
+
+      <!-- CTAs -->
+      <div class="hero-cta flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="app.html" class="cta-btn inline-flex items-center gap-2.5 bg-ink-900 text-white px-8 py-3.5 rounded-full text-base font-semibold tracking-wide">
+          <span>执行演化</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+        <a href="#process" class="cta-ghost inline-flex items-center gap-2 text-ink-500 text-sm font-medium">
+          <span>了解工作流程</span>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 3V11M7 11L4 8M7 11L10 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Trust -->
+      <div class="hero-trust mt-16 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-ink-400">
+        <span class="flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L8.5 5H13L9.5 7.5L10.5 12L7 9.5L3.5 12L4.5 7.5L1 5H5.5L7 1Z" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+          DeepSeek / Claude 双引擎
+        </span>
+        <span class="flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1"/><path d="M5 7L6.5 8.5L9 5.5" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          完全离线可运行
+        </span>
+        <span class="flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7C2 4.24 4.24 2 7 2C9.76 2 12 4.24 12 7" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><path d="M7 2V12" stroke="currentColor" stroke-width="0.8" opacity="0.5"/><ellipse cx="7" cy="7" rx="3" ry="5.5" stroke="currentColor" stroke-width="0.8" opacity="0.5"/></svg>
+          零服务器依赖
+        </span>
+      </div>
+
+      <!-- Keyboard hint -->
+      <div class="hero-trust mt-6 flex items-center justify-center gap-2 text-xs text-ink-300">
+        <span>快捷键</span>
+        <kbd>⌘</kbd><kbd>K</kbd>
+        <span>快速开始</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FEATURES ===== -->
+  <section id="features" class="py-24 md:py-32">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-center mb-16 reveal">
+        <span class="text-xs font-medium text-accent-blue tracking-widest uppercase mb-4 block">Core Capabilities</span>
+        <h2 class="section-title font-display font-800 mb-4">从静态到动态的蜕变</h2>
+        <p class="section-subtitle text-ink-500 max-w-lg mx-auto">每一个像素、每一段文字、每一张图表，都将在三维空间中获得新生。</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <!-- Card 1 -->
+        <div class="feature-card bg-white rounded-2xl p-7 border-0 reveal reveal-delay-1">
+          <div class="step-num bg-accent-blue/10 text-accent-blue mb-5">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M7 7H13V13H7V7Z" fill="currentColor" opacity="0.2"/>
+              <circle cx="10" cy="10" r="1.5" fill="currentColor" opacity="0.5"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2 tracking-tight">多格式上传</h3>
+          <p class="text-sm text-ink-500 leading-relaxed">支持 JPG、PNG、WebP、TIFF 图片及 PDF 文档。客户端本地解析，数据安全可控。</p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="feature-card bg-white rounded-2xl p-7 border-0 reveal reveal-delay-2">
+          <div class="step-num bg-accent-pink/10 text-accent-pink mb-5">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 2L12.5 7.5H17.5L13.5 11L15 16.5L10 13L5 16.5L6.5 11L2.5 7.5H7.5L10 2Z" stroke="currentColor" stroke-width="1.3" fill="none"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2 tracking-tight">AI 深度解构</h3>
+          <p class="text-sm text-ink-500 leading-relaxed">DeepSeek / Claude 双引擎驱动，精准提取文档中的文字、图表、布局和语义关系。</p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="feature-card bg-white rounded-2xl p-7 border-0 reveal reveal-delay-3">
+          <div class="step-num bg-accent-green/10 text-accent-green mb-5">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M3 10C3 6 6 3 10 3C14 3 17 6 17 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M10 3V17" stroke="currentColor" stroke-width="0.8" opacity="0.3"/>
+              <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1" fill="none"/>
+              <circle cx="10" cy="10" r="0.8" fill="currentColor" opacity="0.5"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2 tracking-tight">3D 交互重生</h3>
+          <p class="text-sm text-ink-500 leading-relaxed">Three.js + GSAP 驱动的沉浸式体验。鼠标视差、滚动叙事、粒子特效——文档真正活起来。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PROCESS ===== -->
+  <section id="process" class="py-24 md:py-32 bg-surface-100/40">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-20 reveal">
+        <span class="text-xs font-medium text-accent-green tracking-widest uppercase mb-4 block">How It Works</span>
+        <h2 class="section-title font-display font-800 mb-4">三步完成演化</h2>
+        <p class="section-subtitle text-ink-500 max-w-md mx-auto">从上传到生成，整个过程不超过两分钟。</p>
+      </div>
+
+      <div class="space-y-0">
+        <!-- Step 1 -->
+        <div class="flex items-start gap-6 md:gap-10 reveal">
+          <div class="step-num bg-ink-900 text-white shrink-0">01</div>
+          <div class="pt-1.5 pb-12 border-l border-surface-300 pl-6 md:pl-10 -ml-[1px]">
+            <h3 class="font-semibold text-xl mb-2 tracking-tight">上传文档</h3>
+            <p class="text-ink-500 leading-relaxed max-w-lg text-[15px]">
+              拖拽或选择文件——支持 PDF、JPG、PNG、WebP、TIFF。所有文件在浏览器本地解析，原始数据不会泄露到第三方服务器。
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="flex items-start gap-6 md:gap-10 reveal">
+          <div class="step-num bg-ink-900 text-white shrink-0">02</div>
+          <div class="pt-1.5 pb-12 border-l border-surface-300 pl-6 md:pl-10 -ml-[1px]">
+            <h3 class="font-semibold text-xl mb-2 tracking-tight">执行演化</h3>
+            <p class="text-ink-500 leading-relaxed max-w-lg text-[15px]">
+              选择 AI 引擎（DeepSeek 或 Claude），点击"执行演化"。AI 将解构文档的每一个元素——文字、图片、布局、数据——并构思三维空间中的最佳呈现方式。
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="flex items-start gap-6 md:gap-10 reveal">
+          <div class="step-num bg-ink-900 text-white shrink-0">03</div>
+          <div class="pt-1.5 border-l-0 pl-6 md:pl-10">
+            <h3 class="font-semibold text-xl mb-2 tracking-tight">获得交互页面</h3>
+            <p class="text-ink-500 leading-relaxed max-w-lg text-[15px]">
+              演化完成后，你将获得一个在线链接和可下载的自包含 HTML 文件。在浏览器中打开即可体验 3D 交互——无需任何服务器，完全离线运行。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="text-center mt-16 reveal">
+        <a href="app.html" class="cta-btn inline-flex items-center gap-2.5 bg-ink-900 text-white px-10 py-4 rounded-full text-base font-semibold tracking-wide">
+          <span>开始演化</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="py-12">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="footer-line mb-8"></div>
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-6 h-6 rounded-md bg-ink-900 flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 18 18" fill="none">
+              <path d="M3 6L9 2L15 6V12L9 16L3 12V6Z" stroke="#FAFBFE" stroke-width="1.5" fill="none"/>
+            </svg>
+          </div>
+          <span class="text-sm font-medium text-ink-700">PPT InteractiveWebPage</span>
+        </div>
+        <p class="text-xs text-ink-400">
+          Powered by DeepSeek & Claude · Built on Cloudflare Workers & Pages
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script>
+    // Scroll reveal
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    // Parallax orbs
+    let rafPending = false;
+    document.addEventListener('mousemove', (e) => {
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(() => {
+        const x = (e.clientX / window.innerWidth - 0.5);
+        const y = (e.clientY / window.innerHeight - 0.5);
+        const orb1 = document.getElementById('orb1');
+        const orb2 = document.getElementById('orb2');
+        if (orb1) orb1.style.transform = `translate(${x * 30}px, ${y * 25}px)`;
+        if (orb2) orb2.style.transform = `translate(${x * -20}px, ${y * -18}px)`;
+        rafPending = false;
+      });
+    });
+
+    // Mobile menu
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    mobileMenuBtn?.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+
+    // Keyboard shortcut: ⌘K / Ctrl+K → navigate to app
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        window.location.href = 'app.html';
+      }
+    });
+  </script>
+</body>
+</html>
