@@ -517,7 +517,7 @@ function handleConfig(env) {
 //直接跳过了CORS的204响应，一路坠落到最底部的404错误。这就导致了在控制台里 “预检请求不通过，没有HTTP OK状态” + CORS拦截。
 //当访问/api/health时，由于method是 undefined，if (path === '/api/health' && method === 'GET')同样判定为假，
 //直接触发了最后的兜底 404 路由，吐出了 {"error":"Not found","path":"/api/health"}
-//
+
 // export default {
 //   async fetch(request, env, ctx) {
 //     const url = new URL(request.url);
@@ -526,6 +526,12 @@ function handleConfig(env) {
 //     if (method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(env) });
 
 
+
+
+
+//把原本错误的 const { pathname: path, method } = url; 拆开成了两行正确的获取方式：
+//path 从url.pathname拿
+//method 从request.method拿
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
