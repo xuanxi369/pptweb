@@ -1,23 +1,61 @@
+# name = "ppt-evolution-worker"
+# main = "src/index.js"
+# compatibility_date = "2024-09-23"
+# compatibility_flags = ["nodejs_compat"]
+
+# # Non-sensitive config
+# [vars]
+# MODEL_PROVIDER = "deepseek"
+# ALLOWED_ORIGIN = "*"
+
+# # KV Namespace (create with: wrangler kv:namespace create "KV")
+# # [[kv_namespaces]]
+# # binding = "KV"
+# # id = "YOUR_KV_NAMESPACE_ID"
+
+# # R2 Bucket (create with: wrangler r2 bucket create PAGES)
+# # [[r2_buckets]]
+# # binding = "R2"
+# # bucket_name = "PAGES"
+
+# # Secrets (set via: wrangler secret put <KEY_NAME>)
+# # DEEPSEEK_API_KEY
+# # CLAUDE_API_KEY
+
+# ===========================================================
+
 name = "ppt-evolution-worker"
 main = "src/index.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
-# Non-sensitive config
+# 非敏感公共配置
 [vars]
 MODEL_PROVIDER = "deepseek"
 ALLOWED_ORIGIN = "*"
 
-# KV Namespace (create with: wrangler kv:namespace create "KV")
-# [[kv_namespaces]]
-# binding = "KV"
-# id = "YOUR_KV_NAMESPACE_ID"
+# 1. 仪表盘提示你同步的“可观察性日志”配置（已经从 JSONC 转换为 TOML 格式）
+[observability]
+enabled = false
+head_sampling_rate = 1
 
-# R2 Bucket (create with: wrangler r2 bucket create PAGES)
-# [[r2_buckets]]
-# binding = "R2"
-# bucket_name = "PAGES"
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
 
-# Secrets (set via: wrangler secret put <KEY_NAME>)
-# DEEPSEEK_API_KEY
-# CLAUDE_API_KEY
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
+
+# 2. ⚠️ 注意：必须取消这两段的注释，否则每次 Git 部署都会把你的数据库绑定冲掉！
+# 请把下面的 YOUR_KV_NAMESPACE_ID 替换为你真实的 KV ID（在 Cloudflare 仪表盘 KV 页面可以看到那串长长的 ID）
+[[kv_namespaces]]
+binding = "KV"
+id = "a0fb3af80e3c436bb41f48ffda9b6580"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "pptweb"
