@@ -22,7 +22,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const MAX_INPUT_CHARS = 500_000;
+const MAX_INPUT_CHARS = 3_000_000;
 const MAX_FILE_NAME_LEN = 200;
 const MAX_HTML_SIZE = 3_000_000;        // 3MB max for R2 storage
 const RATE_LIMIT_WINDOW = 60;
