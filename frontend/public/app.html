@@ -760,7 +760,7 @@ async function evolve() {
     log('  → AI 正在生成...', 'info');
     el.progress.style.width = '35%';
 
-    // Read stream
+   // Read stream
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let full = '', buf = '', chunks = 0;
@@ -786,17 +786,47 @@ async function evolve() {
       }
     }
 
+    // 针对流异常中断的末尾清空保护
+    if (buf && buf.startsWith('data: ')) {
+      try {
+        const d = buf.slice(6).trim();
+        const j = JSON.parse(d);
+        if (j.content) full += j.content;
+      } catch {}
+    }
+
     // Phase 4: Pack
     setPhase('pack');
     setStatus('打包结果');
-    log('📦 提取 HTML...', 'info');
+    log('📦 提取 HTML 并重构资源...', 'info');
     el.progress.style.width = '92%';
 
     const m = full.match(/```html\s*\n?([\s\S]*?)```/);
     html = m ? m[1].trim() : full.trim();
     if (!html || html.length < 100) throw new Error('生成内容过短，请重试');
 
-    log(`  ✓ HTML ${(html.length/1024).toFixed(1)} KB`, 'success');
+    // ✨ 核心：占位符图片还原注入器
+    const allImages = [];
+    for (const f of extracted) {
+      if (f.type === 'pdf') {
+        for (const p of f.pages) {
+          allImages.push(p.img);
+        }
+      } else {
+        allImages.push(f.img);
+      }
+    }
+
+    if (allImages.length > 0) {
+      log(`  🖼️ 正在向 3D 空间注入 ${allImages.length} 张原始影像纹理...`, 'info');
+      allImages.forEach((imgData, index) => {
+        const placeholder = `{{IMAGE_${index}}}`;
+        html = html.split(placeholder).join(imgData);
+      });
+      log('  ✓ 资源 3D 实质化注入成功', 'success');
+    }
+
+    log(`  ✓ 最终打包完成 HTML ${(html.length/1024).toFixed(1)} KB`, 'success');
     el.progress.style.width = '95%';
 
     // Upload to R2 for permanent hosting
