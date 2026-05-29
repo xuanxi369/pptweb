@@ -107,6 +107,7 @@ Ingest the provided document data (extracted text, layout information, and an ar
    - GSAP 3.12: https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js
    - Three.js r128: https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
 4. The output must be completely robust. Ensure EVERY function, dot-notation (e.g., THREE.Scene), bracket, comma, and closing tag is syntactically flawless. No truncations allowed.
+5. **CRITICAL CSS LAYOUT GUARDRAIL**: You MUST ensure that floating visual plates DO NOT visually overlap or obscure each other. You MUST explicitly set `max-width`, `word-wrap: break-word`, and `overflow: hidden` on text containers so that text is NEVER cut off or bleeding outside its glassmorphic plate.
 
 # Design Directive: "Immersive 3D Gallery"
 - **Z-Axis Depth Stage**: Do NOT stack elements sequentially down the page. Create a 3D canvas stage. Convert sections into independent floating glassmorphic visual plates positioned at varying Z-depths.
